@@ -11,7 +11,7 @@ if [ $# != 1 ]; then
 fi
 
 if [ "$1" = auto ]; then
-	pid="`ps -A -o pid -o comm= | sed -En 's/^ *([0-9]+) +game\\.exe$/\\1/p'`"
+	pid="`ps -A -o pid -o comm= | sed -En 's/^ *([0-9]+) +game\\.exe\$/\\1/p'`"
 	if [ -z "$pid" ]; then
 		echo "Cannot find a game.exe process" 1>&2
 		exit 1
@@ -37,7 +37,7 @@ define patch
 end
 patch $RA2_1000_VA_1 $RA2_1000_VA_2
 patch $RA2_1006_VA_1 $RA2_1006_VA_2
-printf "\nGame version not supported or already patched\n"
+printf "\\nGame version not supported or already patched\\n"
 detach
 quit 1
 EOT
