@@ -1,0 +1,37 @@
+<ul class="cheat-list">
+  @for (cheat of cheats(); track cheat.id) {
+    <li class="cheat-row">
+      <div class="cheat-info">
+        <div class="cheat-name">{{ cheat.name }}</div>
+        <div class="cheat-description">{{ cheat.description }}</div>
+        @if (cheat.versionLabel) {
+          <div class="cheat-version">{{ cheat.versionLabel }}</div>
+        }
+      </div>
+
+      <span
+        class="badge"
+        [class.badge-applied]="cheat.state === 'applied'"
+        [class.badge-pending]="cheat.state === 'not_applied'"
+        [class.badge-unsupported]="cheat.state === 'unsupported'"
+        [class.badge-unknown]="cheat.state === 'unknown'"
+      >
+        @switch (cheat.state) {
+          @case ('applied') { Aplicado }
+          @case ('not_applied') { No aplicado }
+          @case ('unsupported') { No compatible }
+          @default { Sin datos }
+        }
+      </span>
+
+      <button
+        type="button"
+        class="apply-button"
+        [disabled]="!canApply() || cheat.state !== 'not_applied' || applyingId() === cheat.id"
+        (click)="apply.emit(cheat.id)"
+      >
+        {{ applyingId() === cheat.id ? 'Aplicando…' : 'Aplicar' }}
+      </button>
+    </li>
+  }
+</ul>

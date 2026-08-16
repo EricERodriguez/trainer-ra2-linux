@@ -1,0 +1,54 @@
+<main class="page">
+  <header class="page-header">
+    <h1>RA2 Trainer</h1>
+    <p class="subtitle">Command &amp; Conquer Red Alert 2 / Yuri's Revenge</p>
+  </header>
+
+  <section class="process-panel">
+    @if (process(); as proc) {
+      <div class="process-line">
+        <span class="dot dot-ok"></span>
+        Proceso detectado: <strong>{{ proc.name }}</strong> (PID {{ proc.pid }})
+      </div>
+    } @else {
+      <div class="process-line">
+        <span class="dot dot-off"></span>
+        No se detectó game.exe ni gamemd.exe corriendo
+      </div>
+    }
+
+    <div class="process-actions">
+      <button type="button" (click)="detectProcess()" [disabled]="detecting()">
+        {{ detecting() ? 'Buscando…' : 'Detectar proceso' }}
+      </button>
+      <button type="button" (click)="refreshStatus()" [disabled]="!process() || refreshing()">
+        {{ refreshing() ? 'Actualizando…' : 'Refrescar estado' }}
+      </button>
+    </div>
+
+    <div class="manual-pid">
+      <label for="manual-pid-input">PID manual</label>
+      <input
+        id="manual-pid-input"
+        type="number"
+        min="1"
+        [(ngModel)]="manualPidInput"
+        placeholder="ej. 12345"
+      />
+      <button type="button" (click)="useManualPid()" [disabled]="detecting()">Usar PID</button>
+    </div>
+
+    @if (errorMsg(); as msg) {
+      <div class="error-banner">{{ msg }}</div>
+    }
+  </section>
+
+  <section class="cheats-panel">
+    <app-cheat-list
+      [cheats]="cheatRows()"
+      [applyingId]="applyingId()"
+      [canApply]="!!process()"
+      (apply)="applyCheat($event)"
+    />
+  </section>
+</main>
