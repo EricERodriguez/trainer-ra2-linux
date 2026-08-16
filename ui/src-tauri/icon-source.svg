@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3a0d0d"/>
+      <stop offset="55%" stop-color="#7a1414"/>
+      <stop offset="100%" stop-color="#a81c1c"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe27a"/>
+      <stop offset="100%" stop-color="#f5b400"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect x="16" y="16" width="480" height="480" rx="84" fill="none" stroke="#f5c542" stroke-width="10" opacity="0.85"/>
+
+  <text x="256" y="238" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-weight="900" font-size="152" fill="#f4f4f4" letter-spacing="-2">RA2</text>
+
+  <text x="256" y="340" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-weight="700" font-size="58" fill="#f5c542" letter-spacing="9">TRAINER</text>
+
+  <polygon points="290,372 254,432 276,432 246,478 320,420 288,420"
+           fill="url(#bolt)" stroke="#7a1414" stroke-width="4" stroke-linejoin="round"/>
+</svg>
