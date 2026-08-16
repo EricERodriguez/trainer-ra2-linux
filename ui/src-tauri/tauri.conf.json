@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ra2-trainer",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.ra2trainer.app",
   "build": {
     "frontendDist": "../dist/ui/browser",
     "devUrl": "http://localhost:4200",
