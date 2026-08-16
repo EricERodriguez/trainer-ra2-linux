@@ -14,12 +14,24 @@ shell sueltos.
 | Créditos infinitos | Detiene la disminución de créditos | RA2 v1.000/v1.006 y Yuri's Revenge v1.000 |
 | Revelar mapa completo | Revela el mapa completo mientras poseas alguna estructura | RA2 v1.000/v1.006 (no Yuri's Revenge) |
 | Radar siempre activo | Activa el mapa de radar incondicionalmente | RA2 v1.000/v1.006 (no Yuri's Revenge) |
+| Energía infinita | Congela el consumo de energía en 0 (nunca falta energía, sin importar cuántos edificios tengas) | RA2 v1.006 y Yuri's Revenge (build 1.11 de Steam) |
 | Construcción instantánea | Completa al instante cualquier edificio o unidad en cola (propia y de la IA), mientras esté activado | RA2 v1.006 |
 
-Los primeros cuatro son parches estáticos de bytes (se aplican una vez y
+Los primeros cinco son parches estáticos de bytes (se aplican una vez y
 quedan aplicados hasta que cierres el juego). "Construcción instantánea" es
 distinto: usa un breakpoint en vivo y hay que dejarlo activado (toggle) para
 que siga teniendo efecto.
+
+> **Nota de versiones**: las direcciones de "Energía infinita" se
+> verificaron por desensamblado directo contra los binarios de la instalación
+> de Steam actual (`game.exe` reporta FileVersion 1.08 mapeando al mismo
+> código que ya usaba `infinite-credits` como "v1.006"; `gamemd.exe` reporta
+> FileVersion 1.11). Al hacerlo se detectó que las direcciones existentes de
+> `build-anywhere`/`infinite-credits` para "Yuri's Revenge v1.000" **no
+> coinciden** con el `gamemd.exe` de esta instalación (el sitio real de
+> `SpendMoney` está en otra dirección) — probablemente esos dos cheats
+> aparezcan como "unsupported" en Yuri's Revenge hasta que se rederiven sus
+> direcciones contra el build actual.
 
 ## Cómo funciona
 

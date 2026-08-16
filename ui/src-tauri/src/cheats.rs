@@ -92,6 +92,27 @@ const RADAR_RA2_1006: &[PatchSite] = &[
     PatchSite { address: 0x632f39, check: &[0x75, 0x5d], patch: &[0x90, 0x90] },
 ];
 
+// --- infinite-power: freeze PowerDrain at 0 so power never runs short ---
+//
+// HouseClass keeps two running totals, PowerOutput and PowerDrain, each
+// written in two places: an incremental adjuster (called when a single
+// building is added/sold/powered up or down) and a full recompute loop
+// (called when the whole house needs to be resynced, summing every owned
+// building's contribution). Both write sites for PowerDrain are patched so
+// it can never move off its constructor-initialized value of 0, regardless
+// of how many power-hungry buildings are owned; PowerOutput is left
+// untouched. Verified live by disassembling the actual installed binaries
+// (game.exe / gamemd.exe) around the already-verified infinite-credits
+// SpendMoney sites, not ported from an external source.
+const POWER_RA2_1006: &[PatchSite] = &[
+    PatchSite { address: 0x4ec871, check: &[0x89, 0x86, 0xd4, 0x52, 0x00, 0x00], patch: &[0x90; 6] },
+    PatchSite { address: 0x4f2d9b, check: &[0x89, 0x8e, 0xd4, 0x52, 0x00, 0x00], patch: &[0x90; 6] },
+];
+const POWER_RA2MD: &[PatchSite] = &[
+    PatchSite { address: 0x5018e1, check: &[0x89, 0x86, 0xa8, 0x53, 0x00, 0x00], patch: &[0x90; 6] },
+    PatchSite { address: 0x508d18, check: &[0x89, 0x96, 0xa8, 0x53, 0x00, 0x00], patch: &[0x90; 6] },
+];
+
 pub const CHEATS: &[Cheat] = &[
     Cheat {
         id: "build-anywhere",
@@ -129,6 +150,15 @@ pub const CHEATS: &[Cheat] = &[
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.000", process_name: "game.exe", sites: RADAR_RA2_1000 },
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: RADAR_RA2_1006 },
+        ],
+    },
+    Cheat {
+        id: "infinite-power",
+        name: "Energia infinita",
+        description: "Congela el consumo de energia en 0 para que nunca falte, sin importar cuantos edificios tengas",
+        variants: &[
+            CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: POWER_RA2_1006 },
+            CheatVariant { version_label: "Yuri's Revenge (build 1.11 de Steam)", process_name: "gamemd.exe", sites: POWER_RA2MD },
         ],
     },
 ];
