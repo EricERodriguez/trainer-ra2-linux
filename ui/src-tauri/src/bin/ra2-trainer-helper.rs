@@ -15,10 +15,16 @@
 //! the parent tells "auth failed" apart from "auth ok, operation failed".
 
 use app_lib::cheats::{self, CheatStatus};
+use app_lib::instant_build::{self, InstantBuildHandle};
 use app_lib::process;
 use app_lib::ptrace_mem::{Attached, MemError};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
+
+#[derive(Serialize)]
+struct InstantBuildStatus {
+    enabled: bool,
+}
 
 #[derive(Serialize)]
 struct Envelope<T: Serialize> {
@@ -71,29 +77,89 @@ fn run_apply(pid: i32, cheat_id: &str) -> Result<CheatStatus, String> {
 enum Request {
     Status { pid: i32 },
     Apply { pid: i32, cheat_id: String },
+    ToggleInstantBuild { pid: i32, enabled: bool },
 }
+
+const INSTANT_BUILD_BUSY: &str =
+    "instant-build esta activo; desactivalo para usar otras acciones sobre este proceso";
 
 /// Handles one request line, never panics/exits: any failure (bad JSON,
 /// unknown pid, ptrace error, ...) becomes an `ok:false` envelope so the
 /// `serve` loop keeps running for the next request.
-fn handle_line(line: &str) -> String {
+///
+/// `instant_build` is threaded through (rather than global state) because
+/// its background thread owns the only ptrace attach allowed on the
+/// tracee at a time — status/apply must not race it.
+fn handle_line(line: &str, instant_build_state: &mut Option<InstantBuildHandle>) -> String {
     let request: Request = match serde_json::from_str(line) {
         Ok(r) => r,
         Err(e) => return envelope_json(err::<()>(format!("pedido invalido: {e}"))),
     };
     match request {
-        Request::Status { pid } => match run_status(pid) {
-            Ok(statuses) => envelope_json(ok(statuses)),
-            Err(e) => envelope_json(err::<()>(e)),
-        },
-        Request::Apply { pid, cheat_id } => match run_apply(pid, &cheat_id) {
-            Ok(status) => envelope_json(ok(status)),
-            Err(e) => envelope_json(err::<()>(e)),
-        },
+        Request::Status { pid } => {
+            if instant_build_active_for(instant_build_state, pid) {
+                return envelope_json(err::<()>(INSTANT_BUILD_BUSY));
+            }
+            match run_status(pid) {
+                Ok(statuses) => envelope_json(ok(statuses)),
+                Err(e) => envelope_json(err::<()>(e)),
+            }
+        }
+        Request::Apply { pid, cheat_id } => {
+            if instant_build_active_for(instant_build_state, pid) {
+                return envelope_json(err::<()>(INSTANT_BUILD_BUSY));
+            }
+            match run_apply(pid, &cheat_id) {
+                Ok(status) => envelope_json(ok(status)),
+                Err(e) => envelope_json(err::<()>(e)),
+            }
+        }
+        Request::ToggleInstantBuild { pid, enabled } => {
+            match run_toggle_instant_build(instant_build_state, pid, enabled) {
+                Ok(status) => envelope_json(ok(status)),
+                Err(e) => envelope_json(err::<()>(e)),
+            }
+        }
+    }
+}
+
+fn instant_build_active_for(state: &Option<InstantBuildHandle>, pid: i32) -> bool {
+    state.as_ref().is_some_and(|h| h.pid() == pid)
+}
+
+fn run_toggle_instant_build(
+    state: &mut Option<InstantBuildHandle>,
+    pid: i32,
+    enabled: bool,
+) -> Result<InstantBuildStatus, String> {
+    // A stale handle for a different (presumably closed) game process
+    // shouldn't block toggling this one on.
+    if let Some(existing) = state {
+        if existing.pid() != pid {
+            if let Some(stale) = state.take() {
+                stale.stop();
+            }
+        }
+    }
+
+    match (state.is_some(), enabled) {
+        (true, true) | (false, false) => Ok(InstantBuildStatus { enabled: state.is_some() }),
+        (false, true) => {
+            let handle = instant_build::start(pid)?;
+            *state = Some(handle);
+            Ok(InstantBuildStatus { enabled: true })
+        }
+        (true, false) => {
+            if let Some(handle) = state.take() {
+                handle.stop();
+            }
+            Ok(InstantBuildStatus { enabled: false })
+        }
     }
 }
 
 fn serve() {
+    let mut instant_build_state: Option<InstantBuildHandle> = None;
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -102,10 +168,13 @@ fn serve() {
         if line.trim().is_empty() {
             continue;
         }
-        let response = handle_line(&line);
+        let response = handle_line(&line, &mut instant_build_state);
         if writeln!(out, "{response}").is_err() || out.flush().is_err() {
             break;
         }
+    }
+    if let Some(handle) = instant_build_state.take() {
+        handle.stop();
     }
 }
 

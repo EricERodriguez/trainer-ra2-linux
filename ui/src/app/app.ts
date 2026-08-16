@@ -20,6 +20,8 @@ export class App implements OnInit {
   refreshing = signal(false);
   applyingId = signal<string | null>(null);
   errorMsg = signal<string | null>(null);
+  instantBuildEnabled = signal(false);
+  instantBuildBusy = signal(false);
 
   cheatRows = computed<CheatRow[]>(() =>
     this.cheatMeta().map((meta) => {
@@ -49,6 +51,7 @@ export class App implements OnInit {
     try {
       const proc = await this.trainer.detectProcess();
       this.process.set(proc);
+      this.instantBuildEnabled.set(false);
       if (proc) {
         await this.refreshStatus();
       }
@@ -75,6 +78,7 @@ export class App implements OnInit {
         return;
       }
       this.process.set(proc);
+      this.instantBuildEnabled.set(false);
       await this.refreshStatus();
     } catch (e) {
       this.errorMsg.set(String(e));
@@ -112,6 +116,22 @@ export class App implements OnInit {
       this.errorMsg.set(String(e));
     } finally {
       this.applyingId.set(null);
+    }
+  }
+
+  async toggleInstantBuild() {
+    const proc = this.process();
+    if (!proc) return;
+    const next = !this.instantBuildEnabled();
+    this.instantBuildBusy.set(true);
+    this.errorMsg.set(null);
+    try {
+      const status = await this.trainer.toggleInstantBuild(proc.pid, next);
+      this.instantBuildEnabled.set(status.enabled);
+    } catch (e) {
+      this.errorMsg.set(String(e));
+    } finally {
+      this.instantBuildBusy.set(false);
     }
   }
 }

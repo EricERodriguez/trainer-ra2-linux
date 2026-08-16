@@ -1,4 +1,5 @@
 pub mod cheats;
+pub mod instant_build;
 pub mod process;
 pub mod ptrace_mem;
 
@@ -145,6 +146,22 @@ fn apply_cheat(
     unwrap_helper_result(value)
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct InstantBuildStatus {
+    enabled: bool,
+}
+
+#[tauri::command]
+fn toggle_instant_build(
+    pid: i32,
+    enabled: bool,
+    helper: tauri::State<HelperState>,
+) -> Result<InstantBuildStatus, String> {
+    let request = serde_json::json!({ "cmd": "toggle_instant_build", "pid": pid, "enabled": enabled });
+    let value = send_request(&helper, &request)?;
+    unwrap_helper_result(value)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -165,17 +182,36 @@ pub fn run() {
             get_cheats,
             refresh_status,
             apply_cheat,
+            toggle_instant_build,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| {
-        // Make sure the elevated helper doesn't outlive the app.
+        // Make sure the elevated helper doesn't outlive the app. Dropping
+        // its stdin (rather than an immediate kill) lets `serve()`'s loop
+        // see EOF and run its own cleanup first: if instant-build is
+        // active, that's what restores the breakpoint byte it swapped into
+        // the game process before detaching. A raw kill() would skip that
+        // and leave the game with a permanent trap instruction in its code.
         if let tauri::RunEvent::Exit = event {
             let state = app_handle.state::<HelperState>();
             let taken = state.0.lock().expect("el mutex del helper no deberia envenenarse").take();
             if let Some(mut handle) = taken {
-                let _ = handle.child.kill();
+                drop(handle.stdin);
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                loop {
+                    match handle.child.try_wait() {
+                        Ok(Some(_)) => break,
+                        Ok(None) if std::time::Instant::now() < deadline => {
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                        }
+                        _ => {
+                            let _ = handle.child.kill();
+                            break;
+                        }
+                    }
+                }
             }
         }
     });

@@ -20,6 +20,10 @@ export interface CheatStatus {
   version_label: string | null;
 }
 
+export interface InstantBuildStatus {
+  enabled: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TrainerService {
   detectProcess(): Promise<ProcessInfo | null> {
@@ -40,5 +44,9 @@ export class TrainerService {
 
   applyCheat(pid: number, cheatId: string): Promise<CheatStatus> {
     return invoke('apply_cheat', { pid, cheatId });
+  }
+
+  toggleInstantBuild(pid: number, enabled: boolean): Promise<InstantBuildStatus> {
+    return invoke('toggle_instant_build', { pid, enabled });
   }
 }
