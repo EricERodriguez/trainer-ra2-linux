@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=RA2 Trainer
+Comment=Trainer para Command & Conquer Red Alert 2 / Yuri's Revenge
+Exec=/home/eric44/Github/ra2-trainer/ui/src-tauri/target/release/app
+Icon=/home/eric44/Github/ra2-trainer/ui/src-tauri/icons/icon.png
+Terminal=false
+Categories=Game;
+StartupWMClass=app

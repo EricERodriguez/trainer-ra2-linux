@@ -67,6 +67,31 @@ cd ui
 npm run tauri build
 ```
 
+También podés compilar solo el binario, más rápido, sin generar instaladores
+(`.deb`/AppImage):
+
+```sh
+cd ui/src-tauri
+cargo build --release --bin app
+```
+
+El ejecutable queda en `ui/src-tauri/target/release/app`.
+
+## Ícono y acceso directo
+
+El ícono de la app está en `ui/src-tauri/icons/` (generado a partir de
+`ui/src-tauri/icon-source.svg` con `npx tauri icon`). Hay un lanzador de
+escritorio listo en `ra2-trainer.desktop`, apuntando al binario release y a
+ese ícono. Para instalarlo:
+
+```sh
+cp ra2-trainer.desktop ~/.local/share/applications/
+```
+
+(Requiere haber compilado antes el binario release, ver arriba.) Después de
+copiarlo debería aparecer "RA2 Trainer" con su ícono en el menú de
+aplicaciones.
+
 ## Uso
 
 1. Iniciá el juego (Red Alert 2 o Yuri's Revenge) y dejalo en una partida.
