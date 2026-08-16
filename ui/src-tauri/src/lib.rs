@@ -2,7 +2,11 @@ pub mod cheats;
 pub mod process;
 pub mod ptrace_mem;
 
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::Mutex;
+use tauri::Manager;
 
 #[derive(serde::Serialize)]
 struct CheatMeta {
@@ -28,25 +32,70 @@ fn helper_path() -> Result<PathBuf, String> {
     }
 }
 
-/// Runs the privileged helper via pkexec and parses its `{"ok": bool, ...}`
-/// stdout envelope. A non-zero pkexec exit means the auth dialog was
-/// cancelled/denied, not that the underlying operation failed.
-fn run_helper(args: &[&str]) -> Result<serde_json::Value, String> {
+/// A long-lived `ra2-trainer-helper serve` child, started once (elevated via
+/// pkexec) and reused for every status/apply request via a JSON-lines
+/// stdin/stdout protocol. This is what keeps pkexec's auth prompt to once
+/// per app session instead of once per button click.
+struct HelperHandle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+}
+
+#[derive(Default)]
+struct HelperState(Mutex<Option<HelperHandle>>);
+
+fn spawn_helper() -> Result<HelperHandle, String> {
     let helper = helper_path()?;
-    let output = std::process::Command::new("pkexec")
+    let mut child = Command::new("pkexec")
         .arg(helper)
-        .args(args)
-        .output()
+        .arg("serve")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
         .map_err(|e| format!("no se pudo ejecutar pkexec: {e}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "autenticacion cancelada o no autorizada (pkexec salio con codigo {:?})",
-            output.status.code()
-        ));
+    let stdin = child.stdin.take().expect("stdin fue configurado como piped");
+    let stdout = child.stdout.take().expect("stdout fue configurado como piped");
+    Ok(HelperHandle { child, stdin, stdout: BufReader::new(stdout) })
+}
+
+/// Sends one JSON request line to the persistent helper and reads back one
+/// JSON response line, (re)spawning the helper first if it isn't running
+/// yet. If the helper's pipe is dead (auth was cancelled/denied, or it
+/// crashed), the stale handle is dropped so the *next* call starts a fresh
+/// one (and pkexec prompts again) instead of failing forever.
+fn send_request(state: &HelperState, request: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut guard = state.0.lock().expect("el mutex del helper no deberia envenenarse");
+
+    if guard.is_none() {
+        *guard = Some(spawn_helper()?);
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout)
-        .map_err(|e| format!("respuesta invalida del helper: {e} (salida: {stdout})"))
+    let handle = guard.as_mut().expect("se acaba de asignar arriba");
+
+    let line = serde_json::to_string(request).map_err(|e| e.to_string())?;
+    if writeln!(handle.stdin, "{line}").is_err() || handle.stdin.flush().is_err() {
+        *guard = None;
+        return Err("el proceso helper no responde; se reiniciara en el proximo intento (puede pedir autenticacion de nuevo)".to_string());
+    }
+
+    let mut response_line = String::new();
+    match handle.stdout.read_line(&mut response_line) {
+        Ok(0) => {
+            // EOF: pkexec was cancelled/denied, or the helper crashed.
+            let code = handle.child.try_wait().ok().flatten().and_then(|s| s.code());
+            *guard = None;
+            Err(format!(
+                "la autenticacion fue cancelada o el proceso helper se cerro (codigo {code:?}). Volve a intentar la accion."
+            ))
+        }
+        Ok(_) => serde_json::from_str(&response_line)
+            .map_err(|e| format!("respuesta invalida del helper: {e} (linea: {response_line:?})")),
+        Err(e) => {
+            *guard = None;
+            Err(format!("error leyendo la respuesta del helper: {e}"))
+        }
+    }
 }
 
 fn unwrap_helper_result<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> Result<T, String> {
@@ -79,22 +128,27 @@ fn get_cheats() -> Vec<CheatMeta> {
 }
 
 #[tauri::command]
-fn refresh_status(pid: i32) -> Result<Vec<cheats::CheatStatus>, String> {
-    let pid_str = pid.to_string();
-    let value = run_helper(&["status", "--pid", &pid_str])?;
+fn refresh_status(pid: i32, helper: tauri::State<HelperState>) -> Result<Vec<cheats::CheatStatus>, String> {
+    let request = serde_json::json!({ "cmd": "status", "pid": pid });
+    let value = send_request(&helper, &request)?;
     unwrap_helper_result(value)
 }
 
 #[tauri::command]
-fn apply_cheat(pid: i32, cheat_id: String) -> Result<cheats::CheatStatus, String> {
-    let pid_str = pid.to_string();
-    let value = run_helper(&["apply", "--pid", &pid_str, "--cheat", &cheat_id])?;
+fn apply_cheat(
+    pid: i32,
+    cheat_id: String,
+    helper: tauri::State<HelperState>,
+) -> Result<cheats::CheatStatus, String> {
+    let request = serde_json::json!({ "cmd": "apply", "pid": pid, "cheat_id": cheat_id });
+    let value = send_request(&helper, &request)?;
     unwrap_helper_result(value)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .manage(HelperState::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -112,6 +166,17 @@ pub fn run() {
             refresh_status,
             apply_cheat,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        // Make sure the elevated helper doesn't outlive the app.
+        if let tauri::RunEvent::Exit = event {
+            let state = app_handle.state::<HelperState>();
+            let taken = state.0.lock().expect("el mutex del helper no deberia envenenarse").take();
+            if let Some(mut handle) = taken {
+                let _ = handle.child.kill();
+            }
+        }
+    });
 }
