@@ -67,15 +67,24 @@ cd ui
 npm run tauri build
 ```
 
-También podés compilar solo el binario, más rápido, sin generar instaladores
-(`.deb`/AppImage):
+Genera el ejecutable en `ui/src-tauri/target/release/app` (y de paso
+`.deb`/`.rpm`/`.AppImage` en `target/release/bundle/`).
+
+> **Importante**: usá siempre `npm run tauri build` (o `cargo build
+> --release --bin app` pero corrido *desde* `npm run tauri build` al menos
+> una vez antes). Un `cargo build --release` suelto, sin pasar por la CLI de
+> Tauri, no ejecuta el `beforeBuildCommand` (compilar Angular) ni fija las
+> variables de entorno que le dicen al binario que sirva los archivos ya
+> compilados en vez de buscar el dev server en `localhost:4200` — el
+> síntoma es pantalla en blanco con "Could not connect to localhost:
+> Connection refused" al abrir la app.
+
+También hace falta el helper compilado en release:
 
 ```sh
 cd ui/src-tauri
-cargo build --release --bin app
+cargo build --release --bin ra2-trainer-helper
 ```
-
-El ejecutable queda en `ui/src-tauri/target/release/app`.
 
 ## Ícono y acceso directo
 
