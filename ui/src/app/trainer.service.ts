@@ -43,8 +43,8 @@ export class TrainerService {
     return invoke('refresh_status', { pid });
   }
 
-  applyCheat(pid: number, cheatId: string): Promise<CheatStatus> {
-    return invoke('apply_cheat', { pid, cheatId });
+  toggleCheat(pid: number, cheatId: string): Promise<CheatStatus> {
+    return invoke('toggle_cheat', { pid, cheatId });
   }
 
   toggleInstantBuild(pid: number, enabled: boolean): Promise<InstantBuildStatus> {

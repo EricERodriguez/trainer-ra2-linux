@@ -65,18 +65,18 @@ fn run_status(pid: i32) -> Result<Vec<CheatStatus>, String> {
         .collect()
 }
 
-fn run_apply(pid: i32, cheat_id: &str) -> Result<CheatStatus, String> {
+fn run_toggle(pid: i32, cheat_id: &str) -> Result<CheatStatus, String> {
     let process_name = process::name_for_pid(pid).ok_or_else(|| format!("no existe el proceso con pid {pid}"))?;
     let cheat = cheats::find_cheat(cheat_id).ok_or_else(|| format!("cheat desconocido: {cheat_id}"))?;
     let mem = Attached::new(pid).map_err(|e: MemError| e.to_string())?;
-    cheats::apply_cheat(&mem, cheat, &process_name).map_err(|e| e.to_string())
+    cheats::toggle_cheat(&mem, cheat, &process_name).map_err(|e| e.to_string())
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
 enum Request {
     Status { pid: i32 },
-    Apply { pid: i32, cheat_id: String },
+    Toggle { pid: i32, cheat_id: String },
     ToggleInstantBuild { pid: i32, enabled: bool },
 }
 
@@ -105,11 +105,11 @@ fn handle_line(line: &str, instant_build_state: &mut Option<InstantBuildHandle>)
                 Err(e) => envelope_json(err::<()>(e)),
             }
         }
-        Request::Apply { pid, cheat_id } => {
+        Request::Toggle { pid, cheat_id } => {
             if instant_build_active_for(instant_build_state, pid) {
                 return envelope_json(err::<()>(INSTANT_BUILD_BUSY));
             }
-            match run_apply(pid, &cheat_id) {
+            match run_toggle(pid, &cheat_id) {
                 Ok(status) => envelope_json(ok(status)),
                 Err(e) => envelope_json(err::<()>(e)),
             }
@@ -181,7 +181,7 @@ fn serve() {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(subcommand) = args.first() else {
-        print_and_exit(err::<()>("uso: ra2-trainer-helper <serve|status|apply> [--pid <pid>] [--cheat <id>]"));
+        print_and_exit(err::<()>("uso: ra2-trainer-helper <serve|status|toggle> [--pid <pid>] [--cheat <id>]"));
     };
 
     if subcommand == "serve" {
@@ -197,11 +197,11 @@ fn main() {
             Ok(statuses) => print_and_exit(ok(statuses)),
             Err(e) => print_and_exit(err::<()>(e)),
         },
-        "apply" => {
+        "toggle" => {
             let Some(cheat_id) = get_flag(&args, "--cheat") else {
                 print_and_exit(err::<()>("falta --cheat <id>"));
             };
-            match run_apply(pid, &cheat_id) {
+            match run_toggle(pid, &cheat_id) {
                 Ok(status) => print_and_exit(ok(status)),
                 Err(e) => print_and_exit(err::<()>(e)),
             }

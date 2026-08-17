@@ -46,9 +46,9 @@
   <section class="cheats-panel">
     <app-cheat-list
       [cheats]="cheatRows()"
-      [applyingId]="applyingId()"
-      [canApply]="!!process()"
-      (apply)="applyCheat($event)"
+      [togglingId]="togglingId()"
+      [canToggle]="!!process()"
+      (toggle)="toggleCheat($event)"
     />
   </section>
 

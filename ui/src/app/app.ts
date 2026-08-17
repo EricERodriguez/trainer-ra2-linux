@@ -19,7 +19,7 @@ export class App implements OnInit {
   statuses = signal<Map<string, CheatStatus>>(new Map());
   detecting = signal(false);
   refreshing = signal(false);
-  applyingId = signal<string | null>(null);
+  togglingId = signal<string | null>(null);
   errorMsg = signal<string | null>(null);
   instantBuildEnabled = signal(false);
   instantBuildBusy = signal(false);
@@ -124,20 +124,20 @@ export class App implements OnInit {
     }
   }
 
-  async applyCheat(cheatId: string) {
+  async toggleCheat(cheatId: string) {
     const proc = this.process();
     if (!proc) return;
-    this.applyingId.set(cheatId);
+    this.togglingId.set(cheatId);
     this.errorMsg.set(null);
     try {
-      const status = await this.trainer.applyCheat(proc.pid, cheatId);
+      const status = await this.trainer.toggleCheat(proc.pid, cheatId);
       const next = new Map(this.statuses());
       next.set(status.cheat_id, status);
       this.statuses.set(next);
     } catch (e) {
       this.errorMsg.set(String(e));
     } finally {
-      this.applyingId.set(null);
+      this.togglingId.set(null);
     }
   }
 

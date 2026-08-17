@@ -18,7 +18,17 @@ export interface CheatRow {
 })
 export class CheatListComponent {
   cheats = input.required<CheatRow[]>();
-  applyingId = input<string | null>(null);
-  canApply = input(false);
-  apply = output<string>();
+  togglingId = input<string | null>(null);
+  canToggle = input(false);
+  toggle = output<string>();
+
+  canToggleRow(cheat: CheatRow): boolean {
+    return this.canToggle() && (cheat.state === 'not_applied' || cheat.state === 'applied');
+  }
+
+  buttonLabel(cheat: CheatRow): string {
+    const busy = this.togglingId() === cheat.id;
+    if (cheat.state === 'applied') return busy ? 'Quitando…' : 'Quitar';
+    return busy ? 'Aplicando…' : 'Aplicar';
+  }
 }

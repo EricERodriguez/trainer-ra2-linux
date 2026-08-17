@@ -32,10 +32,10 @@
       <button
         type="button"
         class="apply-button"
-        [disabled]="!canApply() || cheat.state !== 'not_applied' || applyingId() === cheat.id"
-        (click)="apply.emit(cheat.id)"
+        [disabled]="!canToggleRow(cheat) || togglingId() === cheat.id"
+        (click)="toggle.emit(cheat.id)"
       >
-        {{ applyingId() === cheat.id ? 'Aplicando…' : 'Aplicar' }}
+        {{ buttonLabel(cheat) }}
       </button>
     </li>
   }

@@ -250,3 +250,47 @@ pub fn apply_cheat(mem: &Attached, cheat: &Cheat, process_name: &str) -> Result<
     }
     Err(MemError::NoMatchingVariant)
 }
+
+/// The inverse of `apply_cheat`: finds the variant currently sitting at its
+/// patch bytes for `process_name` and writes the original `check` bytes
+/// back. Errors if no variant is currently applied (not applied yet,
+/// unsupported version, or wrong process).
+pub fn revert_cheat(mem: &Attached, cheat: &Cheat, process_name: &str) -> Result<CheatStatus, MemError> {
+    for variant in cheat.variants {
+        if variant.process_name != process_name {
+            continue;
+        }
+        let mut all_patch = true;
+        for site in variant.sites {
+            if !matches(mem, site, site.patch)? {
+                all_patch = false;
+                break;
+            }
+        }
+        if all_patch {
+            for site in variant.sites {
+                mem.write(site.address, site.check)?;
+            }
+            return Ok(CheatStatus {
+                cheat_id: cheat.id.to_string(),
+                state: CheatState::NotApplied,
+                version_label: Some(variant.version_label.to_string()),
+            });
+        }
+    }
+    Err(MemError::NoMatchingVariant)
+}
+
+/// Flips a cheat based on whatever's currently in memory: applies it if
+/// not applied, reverts it if applied, leaves an unsupported process/version
+/// alone. Memory itself is the source of truth (no separate on/off state to
+/// track), so this is safe to call from anywhere without first calling
+/// `evaluate_cheat`.
+pub fn toggle_cheat(mem: &Attached, cheat: &Cheat, process_name: &str) -> Result<CheatStatus, MemError> {
+    let status = evaluate_cheat(mem, cheat, process_name)?;
+    match status.state {
+        CheatState::NotApplied => apply_cheat(mem, cheat, process_name),
+        CheatState::Applied => revert_cheat(mem, cheat, process_name),
+        CheatState::Unsupported => Ok(status),
+    }
+}

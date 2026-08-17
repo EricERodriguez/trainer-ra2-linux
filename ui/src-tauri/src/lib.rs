@@ -153,19 +153,19 @@ fn refresh_status(pid: i32, helper: tauri::State<HelperState>) -> Result<Vec<che
     unwrap_helper_result(value)
 }
 
-fn do_apply_cheat(pid: i32, cheat_id: &str, helper: &HelperState) -> Result<cheats::CheatStatus, String> {
-    let request = serde_json::json!({ "cmd": "apply", "pid": pid, "cheat_id": cheat_id });
+fn do_toggle_cheat(pid: i32, cheat_id: &str, helper: &HelperState) -> Result<cheats::CheatStatus, String> {
+    let request = serde_json::json!({ "cmd": "toggle", "pid": pid, "cheat_id": cheat_id });
     let value = send_request(helper, &request)?;
     unwrap_helper_result(value)
 }
 
 #[tauri::command]
-fn apply_cheat(
+fn toggle_cheat(
     pid: i32,
     cheat_id: String,
     helper: tauri::State<HelperState>,
 ) -> Result<cheats::CheatStatus, String> {
-    do_apply_cheat(pid, &cheat_id, &helper)
+    do_toggle_cheat(pid, &cheat_id, &helper)
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -223,7 +223,7 @@ fn active_pid_or_notify(app: &tauri::AppHandle) -> Option<i32> {
 fn handle_cheat_hotkey(app: &tauri::AppHandle, cheat_id: &str) {
     let Some(pid) = active_pid_or_notify(app) else { return };
     let helper = app.state::<HelperState>();
-    match do_apply_cheat(pid, cheat_id, &helper) {
+    match do_toggle_cheat(pid, cheat_id, &helper) {
         Ok(status) => {
             let _ = app.emit("cheat-status-changed", status);
         }
@@ -287,7 +287,7 @@ pub fn run() {
             resolve_pid,
             get_cheats,
             refresh_status,
-            apply_cheat,
+            toggle_cheat,
             toggle_instant_build,
             set_active_pid,
             instant_build_hotkey,

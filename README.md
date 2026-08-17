@@ -17,17 +17,22 @@ shell sueltos.
 | Energía infinita | `F9` | Congela el consumo de energía en 0 (nunca falta energía, sin importar cuántos edificios tengas) | RA2 v1.006 y Yuri's Revenge (build 1.11 de Steam) |
 | Construcción instantánea | `F10` | Completa al instante cualquier edificio o unidad en cola (propia y de la IA), mientras esté activado | RA2 v1.006 |
 
-Los primeros cinco son parches estáticos de bytes (se aplican una vez y
-quedan aplicados hasta que cierres el juego). "Construcción instantánea" es
-distinto: usa un breakpoint en vivo y hay que dejarlo activado (toggle) para
-que siga teniendo efecto.
+Los seis son toggles: activan el cheat la primera vez y lo desactivan la
+siguiente (tanto desde el botón de la UI como desde el atajo de teclado). En
+los primeros cinco esto funciona porque cada parche guarda tanto los bytes
+originales como los parcheados, así que "desactivar" es literalmente escribir
+los bytes originales de vuelta; en "construcción instantánea" es un
+breakpoint en vivo que se instala/retira. En ambos casos la memoria del
+proceso es la única fuente de verdad — no hay un estado "encendido/apagado"
+separado que se pueda desincronizar, así que da igual si alternás con el
+botón, el atajo, o el propio juego pisa el patch de alguna otra forma.
 
 Cada cheat tiene un atajo de teclado **global** (F5-F10): funciona aunque la
 ventana del juego tenga el foco, no hace falta volver a la app para
-activarlo. Requiere que la app ya haya detectado un proceso (`game.exe` o
-`gamemd.exe`) al menos una vez; si tocás la tecla sin ningún proceso
-detectado, no pasa nada (se registra un error interno, visible si volvés a
-la ventana de la app). Ojo: al ser un atajo global, la tecla queda
+activarlo o desactivarlo. Requiere que la app ya haya detectado un proceso
+(`game.exe` o `gamemd.exe`) al menos una vez; si tocás la tecla sin ningún
+proceso detectado, no pasa nada (se registra un error interno, visible si
+volvés a la ventana de la app). Ojo: al ser un atajo global, la tecla queda
 "agarrada" para todo el sistema mientras la app esté abierta (F5 no
 refrescará una página del navegador, por ejemplo), no solo para el juego.
 
@@ -130,5 +135,5 @@ aplicaciones.
    ingresar el PID manualmente.
 3. Tocá "Refrescar estado" para ver qué versión detectó y el estado de cada
    cheat.
-4. Aplicá los cheats que quieras, o activá el toggle de construcción
-   instantánea.
+4. Activá los cheats que quieras desde la UI (botón "Aplicar"/"Quitar") o con
+   su atajo de teclado (F5-F10), incluso con el juego en foco.
