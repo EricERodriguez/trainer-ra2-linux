@@ -1,7 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { listen } from '@tauri-apps/api/event';
 import { CheatListComponent, CheatRow } from './cheat-list';
-import { CheatMeta, CheatStatus, ProcessInfo, TrainerService } from './trainer.service';
+import { CheatMeta, CheatStatus, InstantBuildStatus, ProcessInfo, TrainerService } from './trainer.service';
 
 @Component({
   selector: 'app-root',
@@ -22,6 +23,7 @@ export class App implements OnInit {
   errorMsg = signal<string | null>(null);
   instantBuildEnabled = signal(false);
   instantBuildBusy = signal(false);
+  instantBuildHotkey = signal('');
 
   cheatRows = computed<CheatRow[]>(() =>
     this.cheatMeta().map((meta) => {
@@ -30,6 +32,7 @@ export class App implements OnInit {
         id: meta.id,
         name: meta.name,
         description: meta.description,
+        hotkey: meta.hotkey,
         state: status?.state ?? 'unknown',
         versionLabel: status?.version_label ?? null,
       };
@@ -39,9 +42,26 @@ export class App implements OnInit {
   async ngOnInit() {
     try {
       this.cheatMeta.set(await this.trainer.getCheats());
+      this.instantBuildHotkey.set(await this.trainer.instantBuildHotkey());
     } catch (e) {
       this.errorMsg.set(String(e));
     }
+
+    // Global shortcuts fire in the Rust backend (so they work even while
+    // the game window has focus, not this app's window) and report back
+    // through these events instead of a command's return value.
+    await listen<CheatStatus>('cheat-status-changed', (event) => {
+      const next = new Map(this.statuses());
+      next.set(event.payload.cheat_id, event.payload);
+      this.statuses.set(next);
+    });
+    await listen<InstantBuildStatus>('instant-build-changed', (event) => {
+      this.instantBuildEnabled.set(event.payload.enabled);
+    });
+    await listen<string>('hotkey-error', (event) => {
+      this.errorMsg.set(event.payload);
+    });
+
     await this.detectProcess();
   }
 
@@ -52,6 +72,7 @@ export class App implements OnInit {
       const proc = await this.trainer.detectProcess();
       this.process.set(proc);
       this.instantBuildEnabled.set(false);
+      await this.trainer.setActivePid(proc ? proc.pid : null);
       if (proc) {
         await this.refreshStatus();
       }
@@ -79,6 +100,7 @@ export class App implements OnInit {
       }
       this.process.set(proc);
       this.instantBuildEnabled.set(false);
+      await this.trainer.setActivePid(proc.pid);
       await this.refreshStatus();
     } catch (e) {
       this.errorMsg.set(String(e));

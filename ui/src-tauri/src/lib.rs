@@ -7,13 +7,15 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[derive(serde::Serialize)]
 struct CheatMeta {
     id: String,
     name: String,
     description: String,
+    hotkey: String,
 }
 
 fn helper_path() -> Result<PathBuf, String> {
@@ -45,6 +47,17 @@ struct HelperHandle {
 
 #[derive(Default)]
 struct HelperState(Mutex<Option<HelperHandle>>);
+
+/// PID of the game process the UI currently has selected, kept in sync via
+/// `set_active_pid` so global-shortcut handlers (which don't go through the
+/// frontend) know which process to act on.
+#[derive(Default)]
+struct ActivePid(Mutex<Option<i32>>);
+
+/// Mirrors instant-build's on/off state so the hotkey handler knows which
+/// way to flip it without a round trip to the frontend.
+#[derive(Default)]
+struct InstantBuildEnabled(Mutex<bool>);
 
 fn spawn_helper() -> Result<HelperHandle, String> {
     let helper = helper_path()?;
@@ -124,7 +137,12 @@ fn resolve_pid(pid: i32) -> Option<process::ProcessInfo> {
 fn get_cheats() -> Vec<CheatMeta> {
     cheats::CHEATS
         .iter()
-        .map(|c| CheatMeta { id: c.id.to_string(), name: c.name.to_string(), description: c.description.to_string() })
+        .map(|c| CheatMeta {
+            id: c.id.to_string(),
+            name: c.name.to_string(),
+            description: c.description.to_string(),
+            hotkey: c.hotkey.to_string(),
+        })
         .collect()
 }
 
@@ -135,20 +153,30 @@ fn refresh_status(pid: i32, helper: tauri::State<HelperState>) -> Result<Vec<che
     unwrap_helper_result(value)
 }
 
+fn do_apply_cheat(pid: i32, cheat_id: &str, helper: &HelperState) -> Result<cheats::CheatStatus, String> {
+    let request = serde_json::json!({ "cmd": "apply", "pid": pid, "cheat_id": cheat_id });
+    let value = send_request(helper, &request)?;
+    unwrap_helper_result(value)
+}
+
 #[tauri::command]
 fn apply_cheat(
     pid: i32,
     cheat_id: String,
     helper: tauri::State<HelperState>,
 ) -> Result<cheats::CheatStatus, String> {
-    let request = serde_json::json!({ "cmd": "apply", "pid": pid, "cheat_id": cheat_id });
-    let value = send_request(&helper, &request)?;
-    unwrap_helper_result(value)
+    do_apply_cheat(pid, &cheat_id, &helper)
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct InstantBuildStatus {
     enabled: bool,
+}
+
+fn do_toggle_instant_build(pid: i32, enabled: bool, helper: &HelperState) -> Result<InstantBuildStatus, String> {
+    let request = serde_json::json!({ "cmd": "toggle_instant_build", "pid": pid, "enabled": enabled });
+    let value = send_request(helper, &request)?;
+    unwrap_helper_result(value)
 }
 
 #[tauri::command]
@@ -156,16 +184,78 @@ fn toggle_instant_build(
     pid: i32,
     enabled: bool,
     helper: tauri::State<HelperState>,
+    instant_build_enabled: tauri::State<InstantBuildEnabled>,
 ) -> Result<InstantBuildStatus, String> {
-    let request = serde_json::json!({ "cmd": "toggle_instant_build", "pid": pid, "enabled": enabled });
-    let value = send_request(&helper, &request)?;
-    unwrap_helper_result(value)
+    let status = do_toggle_instant_build(pid, enabled, &helper)?;
+    *instant_build_enabled.0.lock().expect("el mutex no deberia envenenarse") = status.enabled;
+    Ok(status)
+}
+
+/// Records which process the UI has selected (or `None` while none is
+/// detected), and resets the instant-build flag to match the frontend's own
+/// reset-on-process-change behavior, so a hotkey pressed right after
+/// switching processes doesn't act on the previous one.
+#[tauri::command]
+fn set_active_pid(
+    pid: Option<i32>,
+    active_pid: tauri::State<ActivePid>,
+    instant_build_enabled: tauri::State<InstantBuildEnabled>,
+) {
+    *active_pid.0.lock().expect("el mutex no deberia envenenarse") = pid;
+    *instant_build_enabled.0.lock().expect("el mutex no deberia envenenarse") = false;
+}
+
+#[tauri::command]
+fn instant_build_hotkey() -> &'static str {
+    cheats::INSTANT_BUILD_HOTKEY
+}
+
+/// Common lookup used by every hotkey handler: bails out with a
+/// `hotkey-error` event if no game process is currently selected.
+fn active_pid_or_notify(app: &tauri::AppHandle) -> Option<i32> {
+    let pid = *app.state::<ActivePid>().0.lock().expect("el mutex no deberia envenenarse");
+    if pid.is_none() {
+        let _ = app.emit("hotkey-error", "No hay ningun proceso del juego detectado todavia.".to_string());
+    }
+    pid
+}
+
+fn handle_cheat_hotkey(app: &tauri::AppHandle, cheat_id: &str) {
+    let Some(pid) = active_pid_or_notify(app) else { return };
+    let helper = app.state::<HelperState>();
+    match do_apply_cheat(pid, cheat_id, &helper) {
+        Ok(status) => {
+            let _ = app.emit("cheat-status-changed", status);
+        }
+        Err(e) => {
+            let _ = app.emit("hotkey-error", e);
+        }
+    }
+}
+
+fn handle_instant_build_hotkey(app: &tauri::AppHandle) {
+    let Some(pid) = active_pid_or_notify(app) else { return };
+    let instant_build_enabled = app.state::<InstantBuildEnabled>();
+    let next = !*instant_build_enabled.0.lock().expect("el mutex no deberia envenenarse");
+    let helper = app.state::<HelperState>();
+    match do_toggle_instant_build(pid, next, &helper) {
+        Ok(status) => {
+            *instant_build_enabled.0.lock().expect("el mutex no deberia envenenarse") = status.enabled;
+            let _ = app.emit("instant-build-changed", status);
+        }
+        Err(e) => {
+            let _ = app.emit("hotkey-error", e);
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(HelperState::default())
+        .manage(ActivePid::default())
+        .manage(InstantBuildEnabled::default())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -174,6 +264,22 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            let gs = app.handle().global_shortcut();
+            for cheat in cheats::CHEATS {
+                let cheat_id = cheat.id.to_string();
+                gs.on_shortcut(cheat.hotkey, move |app_handle, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        handle_cheat_hotkey(app_handle, &cheat_id);
+                    }
+                })?;
+            }
+            gs.on_shortcut(cheats::INSTANT_BUILD_HOTKEY, |app_handle, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
+                    handle_instant_build_hotkey(app_handle);
+                }
+            })?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -183,6 +289,8 @@ pub fn run() {
             refresh_status,
             apply_cheat,
             toggle_instant_build,
+            set_active_pid,
+            instant_build_hotkey,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

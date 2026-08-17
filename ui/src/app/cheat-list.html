@@ -2,7 +2,12 @@
   @for (cheat of cheats(); track cheat.id) {
     <li class="cheat-row">
       <div class="cheat-info">
-        <div class="cheat-name">{{ cheat.name }}</div>
+        <div class="cheat-name">
+          {{ cheat.name }}
+          <span class="hotkey-badge" title="Atajo global: funciona aunque el juego tenga el foco">{{
+            cheat.hotkey
+          }}</span>
+        </div>
         <div class="cheat-description">{{ cheat.description }}</div>
         @if (cheat.versionLabel) {
           <div class="cheat-version">{{ cheat.versionLabel }}</div>

@@ -22,6 +22,20 @@
   font-weight: 600;
 }
 
+.hotkey-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 600;
+  color: #ccc;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 .cheat-description {
   font-size: 0.85rem;
   color: #a0a0a0;

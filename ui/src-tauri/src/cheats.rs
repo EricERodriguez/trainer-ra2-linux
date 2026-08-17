@@ -25,8 +25,16 @@ pub struct Cheat {
     pub id: &'static str,
     pub name: &'static str,
     pub description: &'static str,
+    /// Global keyboard shortcut (Tauri accelerator syntax, e.g. "F5") that
+    /// applies this cheat even while the game window has focus.
+    pub hotkey: &'static str,
     pub variants: &'static [CheatVariant],
 }
+
+/// Global shortcut for the instant-build toggle. Not part of `CHEATS`
+/// (instant-build isn't a static patch), so it's kept as its own constant
+/// and exposed to the UI via the `instant_build_hotkey` command.
+pub const INSTANT_BUILD_HOTKEY: &str = "F10";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -118,6 +126,7 @@ pub const CHEATS: &[Cheat] = &[
         id: "build-anywhere",
         name: "Construir en cualquier lugar",
         description: "Permite colocar estructuras fuera del rango de la base",
+        hotkey: "F5",
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.000", process_name: "game.exe", sites: BUILD_ANYWHERE_RA2_1000 },
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: BUILD_ANYWHERE_RA2_1006 },
@@ -128,6 +137,7 @@ pub const CHEATS: &[Cheat] = &[
         id: "infinite-credits",
         name: "Creditos infinitos",
         description: "Detiene la disminucion de creditos",
+        hotkey: "F6",
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.000", process_name: "game.exe", sites: CREDITS_RA2_1000 },
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: CREDITS_RA2_1006 },
@@ -138,6 +148,7 @@ pub const CHEATS: &[Cheat] = &[
         id: "reveal-map",
         name: "Revelar mapa completo",
         description: "Revela el mapa completo mientras poseas alguna estructura (solo Red Alert 2, no Yuri's Revenge)",
+        hotkey: "F7",
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.000", process_name: "game.exe", sites: REVEAL_MAP_RA2_1000 },
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: REVEAL_MAP_RA2_1006 },
@@ -147,6 +158,7 @@ pub const CHEATS: &[Cheat] = &[
         id: "radar-always-on",
         name: "Radar siempre activo",
         description: "Activa el mapa de radar incondicionalmente (solo Red Alert 2, no Yuri's Revenge)",
+        hotkey: "F8",
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.000", process_name: "game.exe", sites: RADAR_RA2_1000 },
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: RADAR_RA2_1006 },
@@ -156,6 +168,7 @@ pub const CHEATS: &[Cheat] = &[
         id: "infinite-power",
         name: "Energia infinita",
         description: "Congela el consumo de energia en 0 para que nunca falte, sin importar cuantos edificios tengas",
+        hotkey: "F9",
         variants: &[
             CheatVariant { version_label: "Red Alert 2 v1.006", process_name: "game.exe", sites: POWER_RA2_1006 },
             CheatVariant { version_label: "Yuri's Revenge (build 1.11 de Steam)", process_name: "gamemd.exe", sites: POWER_RA2MD },

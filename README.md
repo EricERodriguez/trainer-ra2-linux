@@ -8,19 +8,28 @@ shell sueltos.
 
 ## Cheats disponibles
 
-| Cheat | Descripción | Versiones soportadas |
-|---|---|---|
-| Construir en cualquier lugar | Permite colocar estructuras fuera del rango de la base | RA2 v1.000/v1.006 y Yuri's Revenge v1.000 |
-| Créditos infinitos | Detiene la disminución de créditos | RA2 v1.000/v1.006 y Yuri's Revenge v1.000 |
-| Revelar mapa completo | Revela el mapa completo mientras poseas alguna estructura | RA2 v1.000/v1.006 (no Yuri's Revenge) |
-| Radar siempre activo | Activa el mapa de radar incondicionalmente | RA2 v1.000/v1.006 (no Yuri's Revenge) |
-| Energía infinita | Congela el consumo de energía en 0 (nunca falta energía, sin importar cuántos edificios tengas) | RA2 v1.006 y Yuri's Revenge (build 1.11 de Steam) |
-| Construcción instantánea | Completa al instante cualquier edificio o unidad en cola (propia y de la IA), mientras esté activado | RA2 v1.006 |
+| Cheat | Atajo global | Descripción | Versiones soportadas |
+|---|---|---|---|
+| Construir en cualquier lugar | `F5` | Permite colocar estructuras fuera del rango de la base | RA2 v1.000/v1.006 y Yuri's Revenge v1.000 |
+| Créditos infinitos | `F6` | Detiene la disminución de créditos | RA2 v1.000/v1.006 y Yuri's Revenge v1.000 |
+| Revelar mapa completo | `F7` | Revela el mapa completo mientras poseas alguna estructura | RA2 v1.000/v1.006 (no Yuri's Revenge) |
+| Radar siempre activo | `F8` | Activa el mapa de radar incondicionalmente | RA2 v1.000/v1.006 (no Yuri's Revenge) |
+| Energía infinita | `F9` | Congela el consumo de energía en 0 (nunca falta energía, sin importar cuántos edificios tengas) | RA2 v1.006 y Yuri's Revenge (build 1.11 de Steam) |
+| Construcción instantánea | `F10` | Completa al instante cualquier edificio o unidad en cola (propia y de la IA), mientras esté activado | RA2 v1.006 |
 
 Los primeros cinco son parches estáticos de bytes (se aplican una vez y
 quedan aplicados hasta que cierres el juego). "Construcción instantánea" es
 distinto: usa un breakpoint en vivo y hay que dejarlo activado (toggle) para
 que siga teniendo efecto.
+
+Cada cheat tiene un atajo de teclado **global** (F5-F10): funciona aunque la
+ventana del juego tenga el foco, no hace falta volver a la app para
+activarlo. Requiere que la app ya haya detectado un proceso (`game.exe` o
+`gamemd.exe`) al menos una vez; si tocás la tecla sin ningún proceso
+detectado, no pasa nada (se registra un error interno, visible si volvés a
+la ventana de la app). Ojo: al ser un atajo global, la tecla queda
+"agarrada" para todo el sistema mientras la app esté abierta (F5 no
+refrescará una página del navegador, por ejemplo), no solo para el juego.
 
 > **Nota de versiones**: las direcciones de "Energía infinita" se
 > verificaron por desensamblado directo contra los binarios de la instalación

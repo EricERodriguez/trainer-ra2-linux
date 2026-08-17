@@ -5,6 +5,7 @@ export interface CheatRow {
   id: string;
   name: string;
   description: string;
+  hotkey: string;
   state: CheatState | 'unknown';
   versionLabel: string | null;
 }

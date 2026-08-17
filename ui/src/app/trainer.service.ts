@@ -10,6 +10,7 @@ export interface CheatMeta {
   id: string;
   name: string;
   description: string;
+  hotkey: string;
 }
 
 export type CheatState = 'not_applied' | 'applied' | 'unsupported';
@@ -48,5 +49,16 @@ export class TrainerService {
 
   toggleInstantBuild(pid: number, enabled: boolean): Promise<InstantBuildStatus> {
     return invoke('toggle_instant_build', { pid, enabled });
+  }
+
+  // Keeps the backend's notion of "which process are we acting on" in sync
+  // so global-shortcut presses (which don't go through the frontend) know
+  // which pid to target.
+  setActivePid(pid: number | null): Promise<void> {
+    return invoke('set_active_pid', { pid });
+  }
+
+  instantBuildHotkey(): Promise<string> {
+    return invoke('instant_build_hotkey');
   }
 }
