@@ -25,10 +25,4 @@ export class CheatListComponent {
   canToggleRow(cheat: CheatRow): boolean {
     return this.canToggle() && (cheat.state === 'not_applied' || cheat.state === 'applied');
   }
-
-  buttonLabel(cheat: CheatRow): string {
-    const busy = this.togglingId() === cheat.id;
-    if (cheat.state === 'applied') return busy ? 'Quitando…' : 'Quitar';
-    return busy ? 'Aplicando…' : 'Aplicar';
-  }
 }
